@@ -1,13 +1,27 @@
+"""
+This file contains the Config and Options classes to parse the config file.
+"""
 import ast
 import configparser
 
 
 class Config:
-    def __init__(self, config_file):
+    """
+    Class to parse the config file.
+    """
+    def __init__(self, config_file: str):
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
 
-    def get(self, section, option, value_type):
+    def get(self, section: str, option: str, value_type: type):
+        """
+        Get the value from the config file.
+
+        :param section: The section of the config file.
+        :param option: The option of the config file.
+        :param value_type: The type of the value to be returned.
+        :return: The value from the config file.
+        """
         if value_type == int:
             return self.config.getint(section, option)
         elif value_type == float:
@@ -25,6 +39,9 @@ class Config:
 
 
 class Options:
+    """
+    Class to parse the options from the config file.
+    """
     def __init__(self, config_file='config.ini'):
         config = Config(config_file)
 

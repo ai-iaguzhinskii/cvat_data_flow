@@ -3,6 +3,7 @@
 ## Overview
 
 This utility facilitates the download of datasets from [CVAT](https://github.com/opencv/cvat), preparing them for training and testing purposes. Key features include:
+
 - Downloading datasets from CVAT in any supported format.
 - Merging multiple tasks to form a consolidated dataset.
 - Randomly segmenting the dataset into training, validation, and testing subsets.

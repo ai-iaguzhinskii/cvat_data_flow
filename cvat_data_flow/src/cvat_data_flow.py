@@ -1,3 +1,7 @@
+"""
+The cvat_data_flow module provides the CVATDataFlow class 
+for downloading and building datasets from CVAT.
+"""
 import os
 import logging
 import coloredlogs
@@ -33,8 +37,9 @@ class CVATDataFlow:
     ```
     """
     def __init__(
-        self, url: str, login: str, password: str, save_path: str, projects_ids: list, tasks_ids: list,
-        only_build_dataset: bool, dataset_format: str, split: list, labels_mapping: dict, debug: bool = False
+        self, url: str, login: str, password: str, save_path: str,
+        projects_ids: list, tasks_ids: list, only_build_dataset: bool,
+        dataset_format: str, split: list, labels_mapping: dict, debug: bool = False
     ):
         """
         Initialize the CVATDataFlow object.
