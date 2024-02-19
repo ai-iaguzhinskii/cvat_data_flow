@@ -32,7 +32,10 @@ class CVATDataFlow:
     cvat_data_flow.build_dataset()
     ```
     """
-    def __init__(self, url, login, password, save_path, projects_ids, tasks_ids, only_build_dataset, format, split, labels_mapping, debug=False):
+    def __init__(
+        self, url: str, login: str, password: str, save_path: str, projects_ids: list, tasks_ids: list,
+        only_build_dataset: bool, dataset_format: str, split: list, labels_mapping: dict, debug: bool = False
+    ):
         """
         Initialize the CVATDataFlow object.
 
@@ -55,21 +58,29 @@ class CVATDataFlow:
         self.projects_ids = projects_ids
         self.tasks_ids = tasks_ids
         self.only_build_dataset = only_build_dataset
-        self.format = format
+        self.format = dataset_format
         self.split = split
         self.labels_mapping = labels_mapping
         self.debug = debug
 
         self.setup_logging()
-        self.cvat_uploader = CVATUploader(url=self.url, login=self.login, password=self.password, save_path=self.save_path)
+        self.cvat_uploader = CVATUploader(
+            url=self.url, login=self.login, password=self.password, save_path=self.save_path
+        )
 
     def setup_logging(self):
+        """
+        Setup logging and coloredlogs.
+        """
         level = logging.DEBUG if self.debug else logging.INFO
         logging.basicConfig(level=level)
         coloredlogs.install(level=level)
         self.logger = logging.getLogger(__name__)
 
     def download_data(self):
+        """
+        Download data from CVAT.
+        """
         if not self.only_build_dataset:
             if len(self.projects_ids) == 0:
                 self.logger.info(f'Start downloading tasks {self.tasks_ids} ...')
@@ -79,9 +90,13 @@ class CVATDataFlow:
                 self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids)
 
     def build_dataset(self):
+        """
+        Build dataset from the downloaded data.
+        """
         if os.path.exists(self.save_path):
             self.logger.info('Start building dataset ...')
             dataset = CustomDataset(datasets_path=self.save_path, export_format=self.format)
             dataset.transform_dataset(splits=self.split, mapping=self.labels_mapping)
         else:
             self.logger.error(f'Path "{self.save_path}" does not exist.')
+        

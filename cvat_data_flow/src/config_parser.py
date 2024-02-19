@@ -7,17 +7,17 @@ class Config:
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
 
-    def get(self, section, option, type):
-        if type == int:
+    def get(self, section, option, value_type):
+        if value_type == int:
             return self.config.getint(section, option)
-        elif type == float:
+        elif value_type == float:
             return self.config.getfloat(section, option)
-        elif type == bool:
+        elif value_type == bool:
             return self.config.getboolean(section, option)
-        elif type == dict:
+        elif value_type == dict:
             # If the expected type is a dictionary, use ast.literal_eval
             return ast.literal_eval(self.config.get(section, option))
-        elif type == list:
+        elif value_type == list:
             # Strip the [] characters and split on commas
             return [item.strip() for item in self.config.get(section, option).strip('[]').split(',') if item.strip()]
         else:
