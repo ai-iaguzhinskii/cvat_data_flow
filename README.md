@@ -2,7 +2,7 @@
 
 ## New
 
-- [x] Add support for export in YOLOv8 segmentation and detection formats (for segmentation dataset_format = "yolo_seg")
+- [x] Add support for export in YOLOv8 segmentation and detection formats (for segmentation *dataset_format = "yolo_seg"*)
 - [x] Add support for installation via pip
 - [x] Add support for downloading multiple tasks from different projects
 
