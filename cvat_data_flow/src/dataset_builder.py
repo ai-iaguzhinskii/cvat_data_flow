@@ -1,3 +1,4 @@
+# Description: Class for merging and transforming datasets in datumaro format.
 import os
 from collections import OrderedDict
 import json
@@ -6,6 +7,8 @@ import logging
 from datumaro.components.project import Project
 from datumaro.components.operations import IntersectMerge
 from datumaro.components.errors import QualityError, MergeError
+
+from .utils.coco_converter import COCOConverter
 
 
 class CustomDataset():
@@ -76,7 +79,7 @@ class CustomDataset():
         merged_dataset = output_dataset.update(merged_dataset)
 
         if export:
-            merged_dataset.export(save_dir=f'{self.datasets_path}_{self.format}', 
+            merged_dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}',
                                   format=self.export_format, 
                                   save_images=True
             )
@@ -108,6 +111,19 @@ class CustomDataset():
 
         return filter_dataset
     
+    def _export_dataset(self, dataset: Project, path: str, export_format: str, merger: IntersectMerge):
+        """
+        Save dataset in target format
+
+        :param dataset: datumaro.dataset
+        :param path: path to save dataset
+        :param export_format: target format
+        :param merger: datumaro.extractor
+        """
+
+        dataset.export(save_dir=path, format=export_format, save_images=True)
+        self._save_merge_report(merger, os.path.join(path, 'merge_report.json'))
+    
     def transform_dataset(self, splits: list, mapping: list = None, project=None, dataset=None, merger=None):
         """
         Random split dataset on subsests and filter image without annotations and save it.
@@ -132,13 +148,31 @@ class CustomDataset():
         if mapping is not None:
             transform_dataset = self._mapping_labels(transform_dataset, project, mapping)
 
-        transform_dataset.export(f'{self.datasets_path}_{self.export_format}_split', self.export_format, save_images=True)
+        if "yolo" not in self.export_format:
+            self._export_dataset(transform_dataset, f'{self.datasets_path}_{self.export_format}_split', self.export_format, merger)
+        
+        else:
+            self._export_dataset(transform_dataset, f'{self.datasets_path}_{self.export_format}_split', "coco", merger)
+
+            if "seg" in self.export_format:
+                segmentation = True
+            else:
+                segmentation = False
+
+            coco2yolo = COCOConverter(
+                json_dir=f'{self.datasets_path}_{self.export_format}_split/annotations',
+                save_dir=f'{self.datasets_path}_{self.export_format}_split/labels',
+                convert_format="yolo",
+                use_segments=segmentation
+            )
+            coco2yolo.convert()
+
+            # del coco annotations
+            os.system(f'rm -r {f"{self.datasets_path}_{self.export_format}_split/annotations"}')
+
         self.logger.info(f'Dataset saved in "{self.datasets_path}_{self.export_format}_split"')
 
-        report_path = os.path.join(f'{self.datasets_path}_{self.export_format}_split', 'merge_report.json')
-        self._save_merge_report(merger, report_path)
-    
-    
+
     @staticmethod
     def _save_merge_report(merger, path):
         item_errors = OrderedDict()

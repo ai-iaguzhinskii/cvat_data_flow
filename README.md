@@ -1,5 +1,11 @@
 # CVAT DATA FLOW
 
+## New
+
+[x] Add support for export in YOLOv8 segmentation and detection formats (for segmentation dataset_format = "yolo_seg")
+[x] Add support for installation via pip
+[x] Add support for downloading multiple tasks from different projects
+
 ## Overview
 
 This utility facilitates the download of datasets from [CVAT](https://github.com/opencv/cvat), preparing them for training and testing purposes. Key features include:
@@ -38,6 +44,7 @@ PROJECTS_IDS = # Project IDs for downloading, e.g., [111, 222, 333]
 
 [DATASET]
 FORMAT = # Desired dataset format. Refer to CVAT documentation for options, e.g., coco
+# For YOLOv8 segmentation and detection formats use "yolo_seg" and "yolo_det" respectively
 SAVE_PATH = # Directory to save the downloaded datasets, e.g., /home/user/datasets
 SPLIT = # Define random splits for the dataset, e.g., {"train": 0.8, "val": 0.1, "test": 0.1}
 
@@ -79,7 +86,7 @@ cvat_data_flow = CVATDataFlow(
         save_path='/path/to/save/dataset',
         projects_ids=[1, 2, 3],
         only_build_dataset=False,
-        format='coco',
+        dataset_format='coco',
         split=[('train', 0.7), ('val', 0.2), ('test', 0.1)],
         labels_mapping={'person': 'person', 'car': 'vehicle'}
     )
