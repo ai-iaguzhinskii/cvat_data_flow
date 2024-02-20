@@ -1,41 +1,44 @@
 """
 Description: Convert COCO JSON to YOLO format with segmentation support.
 """
+import os
 import json
-from pathlib import Path
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 
-class COCO2YOLOSeg:
+class COCOConverter:
     """
-    Convert COCO JSON to YOLO format with segmentation support.
+    Convert COCO to new format.
 
     Main methods:
     - convert
 
     Convert COCO JSON to YOLO format with segmentation support:
+
     Example:
     ```
-    coco2yolo = COCO2YOLOSeg(
-        json_dir='/path/to/coco/annotations',
-        save_dir='/path/to/save/labels',
+    coco2yolo = COCOConverter(
+        json_dir='data/coco/annotations',
+        save_dir='./converted_labels/',
         use_segments=True,
-        cls91to80=True
+        convert_format='yolo'
     )
+
     coco2yolo.convert()
-    ```
     """
-    def __init__(self, json_dir: str, save_dir: str, use_segments: bool):
+    def __init__(self, json_dir: str, save_dir: str, use_segments: bool = True, convert_format: str = 'yolo'):
         """
-        Initialize the COCO2YOLOSeg object.
+        Initialize the COCOConverter object.
 
         :param json_dir: The path to the COCO JSON directory.
-        :param save_dir: The path to save the YOLO labels.
+        :param save_dir: The path to save the converted labels.
         :param use_segments: Flag indicating whether to use segmentation.
+        :param convert_format: The format to convert to.
         """
         self.json_dir = json_dir
         self.save_dir = save_dir
+        self.convert_format = convert_format
         self.use_segments = use_segments
 
     def _min_index(self, arr1: np.ndarray, arr2: np.ndarray) -> tuple:
@@ -106,8 +109,15 @@ class COCO2YOLOSeg:
 
         return box.tolist()
     
-    def _process_annotation(self, ann, img_dimensions):
-        """Process a single annotation into a bbox or segment format."""
+    def _process_annotation(self, ann: dict, img_dimensions: tuple) -> tuple:
+        """
+        Process a single annotation into a bbox or segment format.
+
+        :param ann: The annotation to process.
+        :param img_dimensions: The dimensions of the image.
+
+        :return: The processed bbox or segment.
+        """
         h, w = img_dimensions
         if ann['iscrowd']:
             return None, None
@@ -130,13 +140,24 @@ class COCO2YOLOSeg:
             segment = [cls] + segment
 
         return box, segment
+    
+    def _to_yolo(self):
+        """
+        Convert COCO JSON to YOLO format
+        """
 
-    def convert(self):
-        """Convert COCO JSON to YOLO format with segmentation support."""
-        Path(self.save_dir).mkdir(parents=True, exist_ok=True)
-        for json_file in sorted(Path(self.json_dir).resolve().glob('instances_*.json')):
-            fn = Path(self.save_dir) / json_file.stem.replace('instances_', '')
-            fn.mkdir(parents=True, exist_ok=True)
+        # Create the save directory
+        os.makedirs(self.save_dir, exist_ok=True)
+
+        # Get only instance segmentation COCO JSONs and sort them
+        sub_dataset_json_paths = [os.path.join(self.json_dir, json_file) for json_file in os.listdir(self.json_dir) if "instances_" in json_file and json_file.endswith('.json')]
+        for json_file in sub_dataset_json_paths:
+
+            # Create a sub dataset directory to save the converted labels(ususally the same as the json file name: train, val, test)
+            sub_dataset_path = os.path.join(self.save_dir, os.path.basename(json_file).split('_')[-1].split('.')[0])
+            os.makedirs(sub_dataset_path, exist_ok=True)
+
+            # Load COCO JSON
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
@@ -158,22 +179,26 @@ class COCO2YOLOSeg:
                     if segment:
                         segments.append(segment)
 
-                with open((fn / f).with_suffix('.txt'), 'w', encoding='utf-8') as file:
+                with open(os.path.join(sub_dataset_path, f'{img_id}.txt'), 'w') as file:
                     for box_or_seg in (segments if self.use_segments else bboxes):
                         line = ' '.join(map(str, box_or_seg))
                         file.write(line + '\n')
 
-    @staticmethod
-    def delete_dsstore(path='../datasets'):
-        """Delete Apple .DS_Store files."""
-        files = list(Path(path).rglob('.DS_Store'))
-        for f in files:
-            f.unlink()
+    def convert(self):
+        """
+        Convert COCO JSON to the specified format.
+        """
+        
+        if self.convert_format == 'yolo':
+            self._to_yolo()
+        else:
+            raise ValueError(f'Unknown convert format: {self.convert_format}.')
+        
 
-if __name__ == '__main__':
-    coco2yolo = COCO2YOLOSeg(
-        json_dir='data/astra_datasets/project_64_coco_split/annotations',
-        save_dir='./converted_labels/',
-        use_segments=True,
-    )
-    coco2yolo.convert()
+# if __name__ == '__main__':
+#     coco2yolo = COCOConverter(
+#         json_dir='data/astra_datasets/project_64_coco_split/annotations',
+#         save_dir='./converted_labels/',
+#         use_segments=True,
+#     )
+#     coco2yolo.convert()
