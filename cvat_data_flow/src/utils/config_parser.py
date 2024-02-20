@@ -4,7 +4,6 @@ This file contains the Config and Options classes to parse the config file.
 import ast
 import configparser
 
-
 class Config:
     """
     Class to parse the config file.

@@ -8,7 +8,7 @@ from datumaro.components.project import Project
 from datumaro.components.operations import IntersectMerge
 from datumaro.components.errors import QualityError, MergeError
 
-from utils.coco_converter import COCOConverter
+from .utils.coco_converter import COCOConverter
 
 
 class CustomDataset():
