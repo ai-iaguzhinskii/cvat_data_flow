@@ -1,3 +1,4 @@
+# Description: Class for merging and transforming datasets in datumaro format.
 import os
 from collections import OrderedDict
 import json
@@ -76,7 +77,7 @@ class CustomDataset():
         merged_dataset = output_dataset.update(merged_dataset)
 
         if export:
-            merged_dataset.export(save_dir=f'{self.datasets_path}_{self.format}', 
+            merged_dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}',
                                   format=self.export_format, 
                                   save_images=True
             )
