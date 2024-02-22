@@ -3,6 +3,7 @@ Description: Convert COCO JSON to YOLO format with segmentation support.
 """
 import os
 import json
+import yaml
 from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
@@ -126,7 +127,7 @@ class COCOConverter:
         if box[2] <= 0 or box[3] <= 0:  # Skip invalid boxes
             return None, None
 
-        cls = ann['category_id']
+        cls = ann['category_id'] - 1
         box = [cls] + box
 
         segment = None
@@ -141,6 +142,68 @@ class COCOConverter:
 
         return box, segment
     
+    def _get_label_map(self, categories: list) -> dict:
+        """
+        Get the label map from the categories.
+
+        :param categories: coco categories list of dict in the format: [{'id': 1, 'name': 'label_name'}, ...]
+        :return: The label map. in the format: {id: label_name}
+        """
+        return {int(cat['id']) - 1: cat['name'] for cat in categories}
+    
+    def _make_yolo_annotation(self, sub_dataset_path: str, data: dict):
+        """
+        Make YOLO annotation file.
+
+        :param sub_dataset_path: The path to the sub dataset.
+        :param data: The COCO JSON data.
+        """
+        images = {img["id"]: img for img in data['images']}
+        img_to_anns = defaultdict(list)
+        for ann in data['annotations']:
+            img_to_anns[ann['image_id']].append(ann)
+
+        for img_id, anns in tqdm(img_to_anns.items(), desc=f'Annotations {sub_dataset_path}'):
+            img = images[img_id]
+            h, w, f = img['height'], img['width'], img['file_name']
+            img_dimensions = (h, w)
+
+            bboxes, segments = [], []
+            for ann in anns:
+                box, segment = self._process_annotation(ann, img_dimensions)
+                if box:
+                    bboxes.append(box)
+                if segment:
+                    segments.append(segment)
+
+            with open(os.path.join(sub_dataset_path, f'{img_id}.txt'), 'w') as file:
+                for box_or_seg in (segments if self.use_segments else bboxes):
+                    line = ' '.join(map(str, box_or_seg))
+                    file.write(line + '\n')
+
+    def _generate_dataset_config(self, label_map: dict):
+        """
+        Generate the dataset config in ultralitycs format for yolov8
+
+        :param label_map: The label map.
+        """
+
+        # Create the save directory
+        os.makedirs(self.save_dir, exist_ok=True)
+
+        # Create the dataset config
+        dataset_config = {
+            "path": self.save_dir,
+            "train": "images/train",
+            "val": "images/val",
+            "test": "images/test" if os.path.exists("images/test") else '',
+            "names": label_map,
+        }
+
+        with open(f"{self.save_dir}/dataset.yaml", "w") as file:
+            yaml.dump(dataset_config, file)
+        
+    
     def _to_yolo(self):
         """
         Convert COCO JSON to YOLO format
@@ -154,35 +217,20 @@ class COCOConverter:
         for json_file in sub_dataset_json_paths:
 
             # Create a sub dataset directory to save the converted labels(ususally the same as the json file name: train, val, test)
-            sub_dataset_path = os.path.join(self.save_dir, os.path.basename(json_file).split('_')[-1].split('.')[0])
+            subset_name = os.path.basename(json_file).split('_')[-1].split('.')[0]
+            sub_dataset_path = os.path.join(self.save_dir, subset_name)
             os.makedirs(sub_dataset_path, exist_ok=True)
 
             # Load COCO JSON
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            images = {img["id"]: img for img in data['images']}
-            img_to_anns = defaultdict(list)
-            for ann in data['annotations']:
-                img_to_anns[ann['image_id']].append(ann)
+            # Make YOLO annotation file
+            self._make_yolo_annotation(sub_dataset_path, data)
 
-            for img_id, anns in tqdm(img_to_anns.items(), desc=f'Annotations {json_file}'):
-                img = images[img_id]
-                h, w, f = img['height'], img['width'], img['file_name']
-                img_dimensions = (h, w)
-
-                bboxes, segments = [], []
-                for ann in anns:
-                    box, segment = self._process_annotation(ann, img_dimensions)
-                    if box:
-                        bboxes.append(box)
-                    if segment:
-                        segments.append(segment)
-
-                with open(os.path.join(sub_dataset_path, f'{img_id}.txt'), 'w') as file:
-                    for box_or_seg in (segments if self.use_segments else bboxes):
-                        line = ' '.join(map(str, box_or_seg))
-                        file.write(line + '\n')
+        label_map = self._get_label_map(data['categories'])
+        self._generate_dataset_config(label_map)
+        
 
     def convert(self):
         """

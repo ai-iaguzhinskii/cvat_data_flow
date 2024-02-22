@@ -4,7 +4,8 @@ from collections import OrderedDict
 import json
 import logging
 
-from datumaro.components.project import Project
+import datumaro as dm
+from datumaro.components.project import Project, ProjectDataset
 from datumaro.components.operations import IntersectMerge
 from datumaro.components.errors import QualityError, MergeError
 
@@ -23,28 +24,52 @@ class CustomDataset():
     ```
     dataset = CustomDataset(
         datasets_path='/path/to/datasets',
-        export_format='coco'
+        export_format='coco',
+        splits=[('train', 0.7), ('val', 0.2), ('test', 0.1)],
+        mapping=[('source_label', 'target_label')],
+        labels_id_mapping={'label_name': target_id}
     )
-    dataset.transform_dataset(
-        splits=[('train', 0.7), ('val', 0.2), ('test', 0.1)]
-    )
+    dataset.export_dataset()
     ```
     As a result, the dataset will be saved in '/path/to/datasets_coco_split' in the COCO format and will be divided into train, val and test subsets.
     """ 
 
-    def __init__(self, datasets_path:str, export_format:str='coco'):
+    def __init__(self, 
+                 datasets_path:str, export_format:str='coco', 
+                 splits: list = None, mapping: tuple = None,
+                 labels_id_mapping: dict = None):
         """
         :param datasets_path: path to folder with cvat tasks in datumaro format
         :param export_format: final format of dataset
+        :param splits: list of tuple of spliting discription: ('subset_name': part_of_subset:float). Default: None
+        :param mapping: list of tuple of mapping discription: ('source_label': 'target_label'). Default: None
+        :param labels_id_mapping: dict of mapping discription: {'label_name': target_id}. Default: None
         """
         self.export_format = export_format
         self.datasets_path = datasets_path
         self.datasets_names = os.listdir(datasets_path)
         self.logger = logging.getLogger(__name__)
 
+        self.dataset = self._create_dataset()
+        self.method_split = self.dataset.env.make_transform('random_split')
+        self.method_mapping = self.dataset.env.make_transform('remap_labels')
+
+        self.splits = splits
+        self.mapping = mapping
+        self.labels_id_mapping = labels_id_mapping
+
+    
+    def _create_dataset(self) -> ProjectDataset:
+        """
+        Create datumaro dataset from tasks in datumaro format
+        """
+        source_datasets = self._create_projects()
+        merged_dataset = self._merge_datasets(source_datasets)
+        return merged_dataset
+
     def _create_projects(self) -> list:
         """
-        Create list of datumaro.datasets from tasks in datumaro format
+        Create list of ProjectDataset from tasks in datumaro format
         """
         source_datasets = []
         for name in self.datasets_names:
@@ -53,16 +78,13 @@ class CustomDataset():
             source_datasets.append(project.make_dataset())
         return source_datasets
     
-    def _merge_datasets(self, source_datasets:list=None, export:bool=False):
+    def _merge_datasets(self, source_datasets:list=None, export:bool=False) -> ProjectDataset:
         """
         Build dataset from tasks without spliting
 
-        :param source_datasets: list of datumaro.datasets, see self._create_projects()
-        :param export: if need save dataset in target format without spliting on train, val and test
+        :param source_datasets: list of ProjectDataset, see self._create_projects()
 
-        :return merger_project: datumaro.project
-        :return merger_dataset: datumaro.dataset
-        :return merger: datumaro.extractor
+        :return merger_dataset: ProjectDataset
         """
         
         if source_datasets is None:
@@ -73,130 +95,63 @@ class CustomDataset():
                                                          quorum=0)
         )
         merged_dataset = merger(source_datasets)
-        merger_project = Project()
-        output_dataset = merger_project.make_dataset()
-        output_dataset.define_categories(merged_dataset.categories())
-        merged_dataset = output_dataset.update(merged_dataset)
 
-        if export:
-            merged_dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}',
-                                  format=self.export_format, 
-                                  save_images=True
-            )
-
-        return merger_project, merged_dataset, merger
+        return merged_dataset
     
-    def _mapping_labels(self, dataset: Project, project: Project, mapping: list):
+    def _mapping_labels(self, dataset: ProjectDataset, mapping: list) -> ProjectDataset:
         """
         Mapping labels from source to target
         
         :param dataset: datumaro.dataset
-        :param mapping: list of tuple of mapping discription: ('source_label': 'target_label').
+        :param mapping: list of tuple of mapping discription: [('source_label': 'target_label')].
 
-        :return filter_dataset: datumaro.dataset
+        :return filter_dataset: ProjectDataset
         """
         
-        method_mapping = project.env.make_transform('remap_labels')
-        extractor_mapping = dataset.transform(method=method_mapping, mapping=mapping, default='delete')
+        mapped_dataset = dataset.transform(self.method_mapping, mapping=mapping)
+        mapped_dataset = mapped_dataset.filter(expr='/item/annotation', filter_annotations=True, remove_empty=True)
 
-        mapping_dataset = Project().make_dataset()
-        mapping_dataset._categories = extractor_mapping.categories()
-        mapping_dataset.update(extractor_mapping)
-
-        filter_extractor = mapping_dataset.filter(expr='/item/annotation', filter_annotations=True, remove_empty=True)
-
-        filter_dataset = Project().make_dataset()
-        filter_dataset._categories = filter_extractor.categories()
-        filter_dataset.update(filter_extractor)
-
-        return filter_dataset
+        return mapped_dataset
     
-    def _export_dataset(self, dataset: Project, path: str, export_format: str, merger: IntersectMerge):
+    def _export_yolo(self, dataset: ProjectDataset, path: str):
         """
-        Save dataset in target format
+        Export dataset in YOLO format
 
-        :param dataset: datumaro.dataset
+        :param dataset: ProjectDataset in datumaro format
         :param path: path to save dataset
-        :param export_format: target format
-        :param merger: datumaro.extractor
         """
 
-        dataset.export(save_dir=path, format=export_format, save_images=True)
-        self._save_merge_report(merger, os.path.join(path, 'merge_report.json'))
-    
-    def transform_dataset(self, splits: list, mapping: list = None, project=None, dataset=None, merger=None):
-        """
-        Random split dataset on subsests and filter image without annotations and save it.
+        # save in COCO format
+        dataset.export(save_dir=path, format='coco', save_images=True)
 
-        :param splits: list of tuple of spliting discription: ('subset_name': part_of_subset:float). 
-        :param mapping: list of tuple of mapping discription: ('source_label': 'target_label'). Default: None
-        :param project: datumaro.project, see self._merge_datasets()
-        :param dataset: datumaro.dataset, see self._merge_datasets()
-        :param merger: datumaro.extractor, see self._merge_datasets()
-        """
-
-        if dataset is None or project is None or merger is None:
-            project, dataset, merger = self._merge_datasets()
+        use_segments = False
+        if "seg" in self.export_format:
+            use_segments = True
         
-        method_split = project.env.make_transform('random_split')
-        extractor_split = dataset.transform(method=method_split, splits=splits)
+        # convert to YOLO format
+        coco2yolo = COCOConverter(
+            json_dir=path,
+            save_dir=path,
+            use_segments=use_segments,
+            convert_format='yolo'
+        )
 
-        transform_dataset = Project().make_dataset()
-        transform_dataset._categories = extractor_split.categories()
-        transform_dataset.update(extractor_split)
+        coco2yolo.convert()
 
-        if mapping is not None:
-            transform_dataset = self._mapping_labels(transform_dataset, project, mapping)
+    def export_dataset(self):
+        """
+        Transform and save dataset in specified format
+        """
 
-        if "yolo" not in self.export_format:
-            self._export_dataset(transform_dataset, f'{self.datasets_path}_{self.export_format}_split', self.export_format, merger)
+        if self.splits is not None:
+            self.dataset = self.dataset.transform(self.method_split, splits=self.splits)
         
+        if self.mapping is not None:
+            self.dataset = self._mapping_labels(self.dataset, self.mapping)
+
+        if 'yolo' in self.export_format:
+            self._export_yolo(self.dataset, f'{self.datasets_path}_{self.export_format}_split')
         else:
-            self._export_dataset(transform_dataset, f'{self.datasets_path}_{self.export_format}_split', "coco", merger)
-
-            if "seg" in self.export_format:
-                segmentation = True
-            else:
-                segmentation = False
-
-            coco2yolo = COCOConverter(
-                json_dir=f'{self.datasets_path}_{self.export_format}_split/annotations',
-                save_dir=f'{self.datasets_path}_{self.export_format}_split/labels',
-                convert_format="yolo",
-                use_segments=segmentation
-            )
-            coco2yolo.convert()
-
-            # del coco annotations
-            os.system(f'rm -r {f"{self.datasets_path}_{self.export_format}_split/annotations"}')
-
-        self.logger.info(f'Dataset saved in "{self.datasets_path}_{self.export_format}_split"')
-
-
-    @staticmethod
-    def _save_merge_report(merger, path):
-        item_errors = OrderedDict()
-        source_errors = OrderedDict()
-        all_errors = []
-
-        for e in merger.errors:
-            if isinstance(e, QualityError):
-                item_errors[str(e.item_id)] = item_errors.get(str(e.item_id), 0) + 1
-            elif isinstance(e, MergeError):
-                for s in e.sources:
-                    source_errors[s] = source_errors.get(s, 0) + 1
-                item_errors[str(e.item_id)] = item_errors.get(str(e.item_id), 0) + 1
-
-            all_errors.append(str(e))
-
-        errors = OrderedDict([
-            ('Item errors', item_errors),
-            ('Source errors', source_errors),
-            ('All errors', all_errors),
-        ])
-
-        with open(path, 'w') as f:
-            json.dump(errors, f, indent=4)
+            self.dataset.export(f'{self.datasets_path}_{self.export_format}_split', self.export_format, save_images=True)
         
-
             

@@ -39,7 +39,8 @@ class CVATDataFlow:
     def __init__(
         self, url: str, login: str, password: str, save_path: str,
         projects_ids: list, tasks_ids: list, only_build_dataset: bool,
-        dataset_format: str, split: list, labels_mapping: dict, debug: bool = False
+        dataset_format: str, split: list, labels_mapping: dict, debug: bool = False,
+        labels_id_mapping: dict = None
     ):
         """
         Initialize the CVATDataFlow object.
@@ -55,6 +56,7 @@ class CVATDataFlow:
         :param split: The split ratio for train and test datasets.
         :param labels_mapping: The mapping of labels from CVAT to the desired format.
         :param debug: Flag indicating whether to enable debug mode.
+        :param labels_id_mapping: The mapping of labels IDs from CVAT to the desired format: {name: id}.Example: {'person': 1, 'car': 2}
         """
         self.url = url
         self.login = login
@@ -67,6 +69,7 @@ class CVATDataFlow:
         self.split = split
         self.labels_mapping = labels_mapping
         self.debug = debug
+        self.labels_id_mapping = labels_id_mapping
 
         self.setup_logging()
         self.cvat_uploader = CVATUploader(
@@ -100,8 +103,12 @@ class CVATDataFlow:
         """
         if os.path.exists(self.save_path):
             self.logger.info('Start building dataset ...')
-            dataset = CustomDataset(datasets_path=self.save_path, export_format=self.format)
-            dataset.transform_dataset(splits=self.split, mapping=self.labels_mapping)
+            dataset = CustomDataset(
+                datasets_path=self.save_path, export_format=self.format,
+                splits=self.split, mapping=self.labels_mapping,
+                labels_id_mapping=self.labels_id_mapping
+            )
+            dataset.export_dataset()
         else:
             self.logger.error(f'Path "{self.save_path}" does not exist.')
         
