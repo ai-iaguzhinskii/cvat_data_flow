@@ -153,7 +153,7 @@ class CVATUploader:
         project = self.client.projects.retrieve(project_id)
         task_ids = project.tasks
 
-        self.logger.info(f'Tasks: {task_ids}')
+        self.logger.info(f'Project {project_id} tasks: {task_ids}')
         self.logger.info(f'Found {len(task_ids)} tasks in project "{project_id}"')
 
         return task_ids
