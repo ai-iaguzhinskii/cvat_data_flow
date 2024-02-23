@@ -181,7 +181,7 @@ class COCOConverter:
                     line = ' '.join(map(str, box_or_seg))
                     file.write(line + '\n')
 
-    def _generate_dataset_config(self, label_map: dict):
+    def _generate_yolo_dataset_config(self, label_map: dict):
         """
         Generate the dataset config in ultralitycs format for yolov8
 
@@ -191,16 +191,21 @@ class COCOConverter:
         # Create the save directory
         os.makedirs(self.save_dir, exist_ok=True)
 
+        # Get the absolute path of the root directory
+        root_dir = os.path.abspath(self.save_dir.split('labels')[0])
+
         # Create the dataset config
         dataset_config = {
-            "path": self.save_dir,
+            "path": root_dir,
             "train": "images/train",
             "val": "images/val",
-            "test": "images/test" if os.path.exists("images/test") else '',
             "names": label_map,
         }
 
-        with open(f"{self.save_dir}/dataset.yaml", "w") as file:
+        if os.path.exists(f"{root_dir}/images/test"):
+            dataset_config["test"] = "images/test"
+
+        with open(f"{root_dir}/dataset.yaml", "w") as file:
             yaml.dump(dataset_config, file)
         
     
@@ -229,7 +234,7 @@ class COCOConverter:
             self._make_yolo_annotation(sub_dataset_path, data)
 
         label_map = self._get_label_map(data['categories'])
-        self._generate_dataset_config(label_map)
+        self._generate_yolo_dataset_config(label_map)
         
 
     def convert(self):

@@ -109,6 +109,7 @@ class CVATDataFlow:
                 labels_id_mapping=self.labels_id_mapping
             )
             dataset.export_dataset()
+            self.logger.info(f'Dataset in {self.format} format has been saved to {self.save_path}.')
         else:
             self.logger.error(f'Path "{self.save_path}" does not exist.')
         

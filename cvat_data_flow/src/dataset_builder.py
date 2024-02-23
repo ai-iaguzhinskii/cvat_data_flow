@@ -3,14 +3,26 @@ import os
 from collections import OrderedDict
 import json
 import logging
-
-import datumaro as dm
-from datumaro.components.project import Project, ProjectDataset
-from datumaro.components.operations import IntersectMerge
-from datumaro.components.errors import QualityError, MergeError
-
+from datumaro import Dataset, HLOps, AnnotationType
+from datumaro.plugins.data_formats.coco.exporter import _InstancesExporter, CocoTask, cast
 from .utils.coco_converter import COCOConverter
 
+# patch coco _InstancesExporter to save categories in the same order as in the dataset
+class PatchInstancesExporter(_InstancesExporter):
+    def save_categories(self, dataset):
+        label_categories = dataset.categories().get(AnnotationType.label)
+        if label_categories is None:
+            return
+
+        label_categories_name_ind = dataset.categories().get(AnnotationType.label)._indices
+        for _, cat in enumerate(label_categories.items):
+            self.categories.append(
+                {
+                    "id": 1 + label_categories_name_ind[cat.name],
+                    "name": cast(cat.name, str, ""),
+                    "supercategory": cast(cat.parent, str, ""),
+                }
+            )
 
 class CustomDataset():
     """
@@ -51,54 +63,32 @@ class CustomDataset():
         self.logger = logging.getLogger(__name__)
 
         self.dataset = self._create_dataset()
-        self.method_split = self.dataset.env.make_transform('random_split')
-        self.method_mapping = self.dataset.env.make_transform('remap_labels')
+        self.method_split = 'random_split'
+        self.method_mapping = 'remap_labels'
 
         self.splits = splits
         self.mapping = mapping
         self.labels_id_mapping = labels_id_mapping
 
     
-    def _create_dataset(self) -> ProjectDataset:
+    def _create_dataset(self) -> Dataset:
         """
         Create datumaro dataset from tasks in datumaro format
         """
-        source_datasets = self._create_projects()
-        merged_dataset = self._merge_datasets(source_datasets)
+        source_datasets = self._create_source_datasets()
+        merged_dataset = HLOps.merge(*source_datasets)
         return merged_dataset
 
-    def _create_projects(self) -> list:
+    def _create_source_datasets(self) -> list:
         """
-        Create list of ProjectDataset from tasks in datumaro format
+        Create list of Dataset from tasks in datumaro format
         """
         source_datasets = []
         for name in self.datasets_names:
-            project = Project().import_from(path=os.path.join(self.datasets_path, name),
-                                            dataset_format='datumaro')
-            source_datasets.append(project.make_dataset())
+            source_datasets.append(Dataset.import_from(os.path.join(self.datasets_path, name), 'datumaro'))
         return source_datasets
     
-    def _merge_datasets(self, source_datasets:list=None, export:bool=False) -> ProjectDataset:
-        """
-        Build dataset from tasks without spliting
-
-        :param source_datasets: list of ProjectDataset, see self._create_projects()
-
-        :return merger_dataset: ProjectDataset
-        """
-        
-        if source_datasets is None:
-            source_datasets = self._create_projects()
-        merger = IntersectMerge(conf=IntersectMerge.Conf(pairwise_dist=0.5, 
-                                                         groups=[], 
-                                                         output_conf_thresh=0.0, 
-                                                         quorum=0)
-        )
-        merged_dataset = merger(source_datasets)
-
-        return merged_dataset
-    
-    def _mapping_labels(self, dataset: ProjectDataset, mapping: list) -> ProjectDataset:
+    def _mapping_labels(self, dataset: Dataset, mapping: list) -> Dataset:
         """
         Mapping labels from source to target
         
@@ -109,20 +99,34 @@ class CustomDataset():
         """
         
         mapped_dataset = dataset.transform(self.method_mapping, mapping=mapping)
-        mapped_dataset = mapped_dataset.filter(expr='/item/annotation', filter_annotations=True, remove_empty=True)
 
         return mapped_dataset
     
-    def _export_yolo(self, dataset: ProjectDataset, path: str):
+    def _export_coco(self, dataset: Dataset, path: str):
+        """
+        Export dataset in COCO format
+
+        :param dataset: Dataset in datumaro format
+        :param path: path to save dataset
+        """
+
+        # patch exporter to save categories in the same order as in the dataset
+        exporter = dataset.env.exporters['coco']
+        exporter._TASK_CONVERTER[CocoTask.instances] = PatchInstancesExporter
+
+        # save in COCO format
+        dataset.export(save_dir=path, format=exporter, save_media=True)
+    
+    def _export_yolo(self, dataset: Dataset, path: str):
         """
         Export dataset in YOLO format
 
-        :param dataset: ProjectDataset in datumaro format
+        :param dataset: Dataset in datumaro format
         :param path: path to save dataset
         """
 
         # save in COCO format
-        dataset.export(save_dir=path, format='coco', save_images=True)
+        self._export_coco(dataset, path)
 
         use_segments = False
         if "seg" in self.export_format:
@@ -130,28 +134,57 @@ class CustomDataset():
         
         # convert to YOLO format
         coco2yolo = COCOConverter(
-            json_dir=path,
-            save_dir=path,
+            json_dir=os.path.join(path, 'annotations'),
+            save_dir=os.path.join(path, 'labels'),
             use_segments=use_segments,
             convert_format='yolo'
         )
 
         coco2yolo.convert()
 
+        # remove COCO format
+        os.system(f'rm -rf {path}/annotations')
+    
+    def _reindex_labels(self, dataset: Dataset, labels_id_mapping: dict) -> Dataset:
+        """
+        Reindex labels.
+
+        :param dataset: Dataset in datumaro format
+        :param labels_id_mapping: dict of mapping discription: {'label_name': target_id}
+
+        :return reindexed_dataset: ProjectDataset
+        """
+
+        category_dict_name_ind = dataset.categories().get(AnnotationType.label)._indices
+        category_dict_ind_name = {v: k for k, v in category_dict_name_ind.items()}
+
+        for item in dataset:
+            for annotation in item.annotations:
+                annotation.label = labels_id_mapping[category_dict_ind_name[annotation.label]]
+                
+        dataset.categories().get(AnnotationType.label)._indices = labels_id_mapping
+
+        return dataset
+    
     def export_dataset(self):
         """
         Transform and save dataset in specified format
         """
 
         if self.splits is not None:
-            self.dataset = self.dataset.transform(self.method_split, splits=self.splits)
+            self.dataset = self.dataset.transform('random_split', splits=self.splits)
         
         if self.mapping is not None:
-            self.dataset = self._mapping_labels(self.dataset, self.mapping)
+            self.dataset = self.dataset.transform(self.method_mapping, mapping=self.mapping)
+
+        if self.labels_id_mapping is not None:
+            self.dataset = self._reindex_labels(self.dataset, self.labels_id_mapping)
 
         if 'yolo' in self.export_format:
             self._export_yolo(self.dataset, f'{self.datasets_path}_{self.export_format}_split')
+        elif 'coco' in self.export_format:
+            self._export_coco(self.dataset, f'{self.datasets_path}_{self.export_format}_split')
         else:
-            self.dataset.export(f'{self.datasets_path}_{self.export_format}_split', self.export_format, save_images=True)
+            self.dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}_split', format=self.export_format, save_media=True)
         
             
