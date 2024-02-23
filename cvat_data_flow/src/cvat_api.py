@@ -40,14 +40,24 @@ class CVATUploader:
         :param logger: Logger.
         """
 
+        import logging.handlers
+
         logging.basicConfig(level=logging.INFO)
         logging.getLogger('cvat_sdk.core.client').setLevel(logging.WARNING)
         self.logger = logging.getLogger(__name__)
 
+        # Add a file handler to save logs in a file
+        log_file = 'cvat_uploader.log'
+        file_handler = logging.handlers.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
+
         self.logger.info(f'Connecting to CVAT "{url}" ...')
-        self.client = make_client(host=url, credentials=(login, password))
-        self.downloads_directory = save_path
-        os.makedirs(self.downloads_directory, exist_ok=True)
+        client = make_client(host=url, credentials=(login, password))
+        downloads_directory = save_path
+        os.makedirs(downloads_directory, exist_ok=True)
 
     def _preroc_data(self, path: str) -> int:
         """
@@ -143,7 +153,7 @@ class CVATUploader:
         project = self.client.projects.retrieve(project_id)
         task_ids = project.tasks
 
-        self.logger.debug(f'tasks: {task_ids}')
+        self.logger.info(f'Tasks: {task_ids}')
         self.logger.info(f'Found {len(task_ids)} tasks in project "{project_id}"')
 
         return task_ids

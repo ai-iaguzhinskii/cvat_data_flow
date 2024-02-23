@@ -137,7 +137,8 @@ class CustomDataset():
             json_dir=os.path.join(path, 'annotations'),
             save_dir=os.path.join(path, 'labels'),
             use_segments=use_segments,
-            convert_format='yolo'
+            convert_format='yolo',
+            labels_id_mapping=self.labels_id_mapping
         )
 
         coco2yolo.convert()
@@ -181,10 +182,10 @@ class CustomDataset():
             self.dataset = self._reindex_labels(self.dataset, self.labels_id_mapping)
 
         if 'yolo' in self.export_format:
-            self._export_yolo(self.dataset, f'{self.datasets_path}_{self.export_format}_split')
+            self._export_yolo(self.dataset, f'{self.datasets_path}_{self.export_format}')
         elif 'coco' in self.export_format:
-            self._export_coco(self.dataset, f'{self.datasets_path}_{self.export_format}_split')
+            self._export_coco(self.dataset, f'{self.datasets_path}_{self.export_format}')
         else:
-            self.dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}_split', format=self.export_format, save_media=True)
+            self.dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}', format=self.export_format, save_media=True)
         
             

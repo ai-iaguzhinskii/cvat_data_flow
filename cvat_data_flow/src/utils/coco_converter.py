@@ -28,7 +28,7 @@ class COCOConverter:
 
     coco2yolo.convert()
     """
-    def __init__(self, json_dir: str, save_dir: str, use_segments: bool = True, convert_format: str = 'yolo'):
+    def __init__(self, json_dir: str, save_dir: str, use_segments: bool = True, convert_format: str = 'yolo', labels_id_mapping: dict = None):
         """
         Initialize the COCOConverter object.
 
@@ -41,6 +41,7 @@ class COCOConverter:
         self.save_dir = save_dir
         self.convert_format = convert_format
         self.use_segments = use_segments
+        self.labels_id_mapping = labels_id_mapping
 
     def _min_index(self, arr1: np.ndarray, arr2: np.ndarray) -> tuple:
         """
@@ -149,6 +150,9 @@ class COCOConverter:
         :param categories: coco categories list of dict in the format: [{'id': 1, 'name': 'label_name'}, ...]
         :return: The label map. in the format: {id: label_name}
         """
+
+        if self.labels_id_mapping is not None:
+            return {int(v): k for k, v in self.labels_id_mapping.items()}
         return {int(cat['id']) - 1: cat['name'] for cat in categories}
     
     def _make_yolo_annotation(self, sub_dataset_path: str, data: dict):
@@ -165,7 +169,7 @@ class COCOConverter:
 
         for img_id, anns in tqdm(img_to_anns.items(), desc=f'Annotations {sub_dataset_path}'):
             img = images[img_id]
-            h, w, f = img['height'], img['width'], img['file_name']
+            h, w, file_name = img['height'], img['width'], img['file_name']
             img_dimensions = (h, w)
 
             bboxes, segments = [], []
@@ -176,7 +180,8 @@ class COCOConverter:
                 if segment:
                     segments.append(segment)
 
-            with open(os.path.join(sub_dataset_path, f'{img_id}.txt'), 'w') as file:
+            img_name = file_name.split('.')[0]
+            with open(os.path.join(sub_dataset_path, f'{img_name}.txt'), 'w') as file:
                 for box_or_seg in (segments if self.use_segments else bboxes):
                     line = ' '.join(map(str, box_or_seg))
                     file.write(line + '\n')

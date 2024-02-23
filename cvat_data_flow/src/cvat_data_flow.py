@@ -97,9 +97,11 @@ class CVATDataFlow:
                 self.logger.info(f'Start downloading projects {self.projects_ids} ...')
                 self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids)
 
-    def build_dataset(self):
+    def build_dataset(self) -> str:
         """
         Build dataset from the downloaded data.
+
+        :return: The path to the built dataset.
         """
         if os.path.exists(self.save_path):
             self.logger.info('Start building dataset ...')
@@ -110,6 +112,8 @@ class CVATDataFlow:
             )
             dataset.export_dataset()
             self.logger.info(f'Dataset in {self.format} format has been saved to {self.save_path}.')
+
+            return os.path.abspath(f'{self.save_path}_{self.format}')
         else:
             self.logger.error(f'Path "{self.save_path}" does not exist.')
         
