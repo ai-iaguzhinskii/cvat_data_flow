@@ -2,7 +2,8 @@ import os
 import shutil
 import zipfile
 import json
-import logging  
+import logging
+from logging import FileHandler
 
 from cvat_sdk import make_client
 from typing import Dict, Any
@@ -48,16 +49,16 @@ class CVATUploader:
 
         # Add a file handler to save logs in a file
         log_file = 'cvat_uploader.log'
-        file_handler = logging.handlers.FileHandler(log_file)
+        file_handler = FileHandler(log_file)
         file_handler.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
 
         self.logger.info(f'Connecting to CVAT "{url}" ...')
-        client = make_client(host=url, credentials=(login, password))
-        downloads_directory = save_path
-        os.makedirs(downloads_directory, exist_ok=True)
+        self.client = make_client(host=url, credentials=(login, password))
+        self.downloads_directory = save_path
+        os.makedirs(self.downloads_directory, exist_ok=True)
 
     def _preroc_data(self, path: str) -> int:
         """

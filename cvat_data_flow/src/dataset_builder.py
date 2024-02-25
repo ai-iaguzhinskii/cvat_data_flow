@@ -76,7 +76,7 @@ class CustomDataset():
         Create datumaro dataset from tasks in datumaro format
         """
         source_datasets = self._create_source_datasets()
-        merged_dataset = HLOps.merge(*source_datasets)
+        merged_dataset = HLOps.merge(*source_datasets, merge_policy="union")
         return merged_dataset
 
     def _create_source_datasets(self) -> list:
