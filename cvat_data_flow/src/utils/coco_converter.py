@@ -28,7 +28,7 @@ class COCOConverter:
 
     coco2yolo.convert()
     """
-    def __init__(self, json_dir: str, save_dir: str, use_segments: bool = True, convert_format: str = 'yolo', labels_id_mapping: dict = None):
+    def __init__(self, json_dir: str, save_dir: str, use_segments: bool = True, convert_format: str = 'yolo'):
         """
         Initialize the COCOConverter object.
 
@@ -41,7 +41,6 @@ class COCOConverter:
         self.save_dir = save_dir
         self.convert_format = convert_format
         self.use_segments = use_segments
-        self.labels_id_mapping = labels_id_mapping
 
     def _min_index(self, arr1: np.ndarray, arr2: np.ndarray) -> tuple:
         """
@@ -151,8 +150,8 @@ class COCOConverter:
         :return: The label map. in the format: {id: label_name}
         """
 
-        if self.labels_id_mapping is not None:
-            return {int(v): k for k, v in self.labels_id_mapping.items()}
+        # if self.labels_id_mapping is not None:
+        #     return {int(v): k for k, v in self.labels_id_mapping.items()}
         return {int(cat['id']) - 1: cat['name'] for cat in categories}
     
     def _make_yolo_annotation(self, sub_dataset_path: str, data: dict):
