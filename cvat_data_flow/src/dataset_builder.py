@@ -15,12 +15,21 @@ class PatchInstancesExporter(_InstancesExporter):
             return
 
         label_categories_name_ind = dataset.categories().get(AnnotationType.label)._indices
-        for _, cat in enumerate(label_categories.items):
+        # for _, cat in enumerate(label_categories.items):
+        #     self.categories.append(
+        #         {
+        #             "id": 1 + label_categories_name_ind[cat.name],
+        #             "name": cast(cat.name, str, ""),
+        #             "supercategory": cast(cat.parent, str, ""),
+        #         }
+        #     )
+
+        for name, ind in label_categories_name_ind.items():
             self.categories.append(
                 {
-                    "id": 1 + label_categories_name_ind[cat.name],
-                    "name": cast(cat.name, str, ""),
-                    "supercategory": cast(cat.parent, str, ""),
+                    "id": 1 + ind,
+                    "name": cast(name, str, ""),
+                    "supercategory": "",
                 }
             )
 
