@@ -146,8 +146,7 @@ class CustomDataset():
             json_dir=os.path.join(path, 'annotations'),
             save_dir=os.path.join(path, 'labels'),
             use_segments=use_segments,
-            convert_format='yolo',
-            labels_id_mapping=self.labels_id_mapping
+            convert_format='yolo'
         )
 
         coco2yolo.convert()
