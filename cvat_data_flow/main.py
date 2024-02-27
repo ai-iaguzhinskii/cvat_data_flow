@@ -1,4 +1,4 @@
-from src.cvat_data_flow import CVATDataFlow
+from cvat_data_flow.src.cvat_data_flow import CVATDataFlow
 from cvat_data_flow.src.utils.config_parser import Options
 
 def main():

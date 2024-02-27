@@ -1,6 +1,6 @@
 Pillow>=6.2.0
 requests>=2.20.1
-datumaro==0.1.9
+datumaro
 cvat-sdk==2.1.0.post1
 PyYAML~=6.0
 tqdm
