@@ -37,8 +37,8 @@ class CVATDataFlow:
     ```
     """
     def __init__(
-        self, url: str, login: str, password: str, save_path: str,
-        projects_ids: list, tasks_ids: list, only_build_dataset: bool,
+        self, url: str, login: str, password: str, raw_data_path: str,
+        projects_ids: list, tasks_ids: list,
         dataset_format: str, split: list, labels_mapping: dict, debug: bool = False,
         labels_id_mapping: dict = None
     ):
@@ -48,10 +48,9 @@ class CVATDataFlow:
         :param url: The URL of the CVAT server.
         :param login: The login username for authentication.
         :param password: The login password for authentication.
-        :param save_path: The path to save the uploaded data.
+        :param raw_data_path: The path to save the uploaded data.
         :param projects_ids: The list of project IDs to upload data from.
         :param tasks_ids: The list of task IDs to upload data from.
-        :param only_build_dataset: Flag indicating whether to only build the dataset without uploading.
         :param format: The format of the dataset to be built.
         :param split: The split ratio for train and test datasets.
         :param labels_mapping: The mapping of labels from CVAT to the desired format.
@@ -61,10 +60,9 @@ class CVATDataFlow:
         self.url = url
         self.login = login
         self.password = password
-        self.save_path = save_path
+        self.raw_data_path = raw_data_path
         self.projects_ids = projects_ids
         self.tasks_ids = tasks_ids
-        self.only_build_dataset = only_build_dataset
         self.format = dataset_format
         self.split = split
         self.labels_mapping = labels_mapping
@@ -73,7 +71,7 @@ class CVATDataFlow:
 
         self.setup_logging()
         self.cvat_uploader = CVATUploader(
-            url=self.url, login=self.login, password=self.password, save_path=self.save_path
+            url=self.url, login=self.login, password=self.password, save_path=self.raw_data_path
         )
 
     def setup_logging(self):
@@ -89,31 +87,35 @@ class CVATDataFlow:
         """
         Download data from CVAT.
         """
-        if not self.only_build_dataset:
-            if len(self.projects_ids) == 0:
-                self.logger.info(f'Start downloading tasks {self.tasks_ids} ...')
-                self.cvat_uploader.upload_tasks_from_cvat(task_ids=self.tasks_ids)
-            else:
-                self.logger.info(f'Start downloading projects {self.projects_ids} ...')
-                self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids)
+        if len(self.projects_ids) == 0:
+            self.logger.info(f'Start downloading tasks {self.tasks_ids} ...')
+            self.cvat_uploader.upload_tasks_from_cvat(task_ids=self.tasks_ids)
+        else:
+            self.logger.info(f'Start downloading projects {self.projects_ids} ...')
+            self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids)
 
-    def build_dataset(self) -> str:
+    def build_dataset(self, save_path: str = None):
         """
         Build dataset from the downloaded data.
 
+        :param save_path: The path to save the built dataset.
         :return: The path to the built dataset.
         """
-        if os.path.exists(self.save_path):
+        if save_path is None:
+            save_path = self.raw_data_path
+        if os.path.exists(self.raw_data_path):
             self.logger.info('Start building dataset ...')
             dataset = CustomDataset(
-                datasets_path=self.save_path, export_format=self.format,
-                splits=self.split, mapping=self.labels_mapping,
+                datasets_path=self.raw_data_path, 
+                export_format=self.format,
+                splits=self.split, 
+                mapping=self.labels_mapping,
                 labels_id_mapping=self.labels_id_mapping
             )
-            dataset.export_dataset()
-            self.logger.info(f'Dataset in {self.format} format has been saved to {self.save_path}.')
+            dataset.export_dataset(save_path=save_path)
+            self.logger.info(f'Dataset in {self.format} format has been saved to {save_path}.')
 
-            return os.path.abspath(f'{self.save_path}_{self.format}')
+            return os.path.abspath(f'{save_path}_{self.format}')
         else:
-            self.logger.error(f'Path "{self.save_path}" does not exist.')
+            self.logger.error(f'Path "{self.raw_data_path}" does not exist.')
         

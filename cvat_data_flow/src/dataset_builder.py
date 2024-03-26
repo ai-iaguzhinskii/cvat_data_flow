@@ -175,7 +175,7 @@ class CustomDataset():
 
         return dataset
     
-    def export_dataset(self):
+    def export_dataset(self, save_path: str = None):
         """
         Transform and save dataset in specified format
         """
@@ -188,12 +188,17 @@ class CustomDataset():
 
         if self.labels_id_mapping is not None:
             self.dataset = self._reindex_labels(self.dataset, self.labels_id_mapping)
+        
+        if save_path is None:
+            save_path = f'{self.datasets_path}_{self.export_format}'
+        else:
+            save_path = f'{save_path}_{self.export_format}'
 
         if 'yolo' in self.export_format:
-            self._export_yolo(self.dataset, f'{self.datasets_path}_{self.export_format}')
+            self._export_yolo(self.dataset, save_path)
         elif 'coco' in self.export_format:
-            self._export_coco(self.dataset, f'{self.datasets_path}_{self.export_format}')
+            self._export_coco(self.dataset, save_path)
         else:
-            self.dataset.export(save_dir=f'{self.datasets_path}_{self.export_format}', format=self.export_format, save_media=True)
+            self.dataset.export(save_dir=save_path, format=self.export_format, save_media=True)
         
             
