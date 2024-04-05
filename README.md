@@ -80,19 +80,32 @@ The utility can also be used as a Python package. Here's an example:
 from cvat_data_flow import CVATDataFlow
 
 cvat_data_flow = CVATDataFlow(
-        url='http://cvat.example.com',
-        login='username',
-        password='password',
-        save_path='/path/to/save/dataset',
-        projects_ids=[1, 2, 3],
-        only_build_dataset=False,
-        dataset_format='coco',
-        split=[('train', 0.7), ('val', 0.2), ('test', 0.1)],
-        labels_mapping={'person': 'person', 'car': 'vehicle'}
-    )
+    url=options.url,
+    login=options.login,
+    password=options.password,
+    raw_data_path=options.raw_data_path,
+    projects_ids=options.projects_ids,
+    tasks_ids=options.tasks_ids,
+    dataset_format=options.format,
+    split=options.split,
+    labels_mapping=options.labels_mapping,
+    debug=options.debug,
+    labels_id_mapping=options.labels_id_mapping,
+)
 
-cvat_data_flow.download_data()
-cvat_data_flow.build_dataset()
+# download data
+if not options.only_build_dataset:
+    if not os.path.exists(options.raw_data_path):
+        cvat_data_flow.download_data()
+    else:
+        cvat_data_flow.logger.info("Data already downloaded")
+
+# build dataset
+# check if the dataset is already built
+if not os.path.exists(f"{options.save_path}_{options.format}"):
+    cvat_data_flow.build_dataset(save_path=options.save_path)
+else:
+    cvat_data_flow.logger.info("Dataset already built")
 ```
 
 ---
