@@ -1,36 +1,23 @@
-"""
-This file contains the Config and Options classes to parse the config file.
-"""
 import ast
 import configparser
 
+
 class Config:
-    """
-    Class to parse the config file.
-    """
-    def __init__(self, config_file: str):
+    def __init__(self, config_file):
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
 
-    def get(self, section: str, option: str, value_type: type):
-        """
-        Get the value from the config file.
-
-        :param section: The section of the config file.
-        :param option: The option of the config file.
-        :param value_type: The type of the value to be returned.
-        :return: The value from the config file.
-        """
-        if value_type == int:
+    def get(self, section, option, type):
+        if type == int:
             return self.config.getint(section, option)
-        elif value_type == float:
+        elif type == float:
             return self.config.getfloat(section, option)
-        elif value_type == bool:
+        elif type == bool:
             return self.config.getboolean(section, option)
-        elif value_type == dict:
+        elif type == dict:
             # If the expected type is a dictionary, use ast.literal_eval
             return ast.literal_eval(self.config.get(section, option))
-        elif value_type == list:
+        elif type == list:
             # Strip the [] characters and split on commas
             return [item.strip() for item in self.config.get(section, option).strip('[]').split(',') if item.strip()]
         else:
@@ -38,10 +25,7 @@ class Config:
 
 
 class Options:
-    """
-    Class to parse the options from the config file.
-    """
-    def __init__(self, config_file='config.ini'):
+    def __init__(self, config_file = 'config.ini'):
         config = Config(config_file)
 
         # cvat
@@ -56,6 +40,7 @@ class Options:
         # dataset
         self.format = config.get('DATASET', 'FORMAT', str)
         self.save_path = config.get('DATASET', 'SAVE_PATH', str)
+        self.raw_data_path = config.get('DATASET', 'RAW_DATA_PATH', str)
         self.split = [
             (str(key), float(value)) for key, value in config.get('DATASET', 'SPLIT', dict).items()
         ]
@@ -67,4 +52,6 @@ class Options:
         ]
         if len(self.labels_mapping) == 0:
             self.labels_mapping = None
+
+        self.labels_id_mapping = config.get('OPTIONS', 'LABELS_ID_MAPPING', dict)
         self.debug = config.get('OPTIONS', 'DEBUG', bool)

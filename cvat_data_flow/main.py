@@ -1,5 +1,6 @@
 from cvat_data_flow.src.cvat_data_flow import CVATDataFlow
 from cvat_data_flow.src.utils.config_parser import Options
+import os
 
 def main():
     """
@@ -11,17 +12,29 @@ def main():
         url=options.url,
         login=options.login,
         password=options.password,
-        save_path=options.save_path,
+        raw_data_path=options.raw_data_path,
         projects_ids=options.projects_ids,
         tasks_ids=options.tasks_ids,
-        only_build_dataset=options.only_build_dataset,
         dataset_format=options.format,
         split=options.split,
         labels_mapping=options.labels_mapping,
-        debug=options.debug
+        debug=options.debug,
+        labels_id_mapping=options.labels_id_mapping,
     )
-    cvat_data_flow.download_data()
-    cvat_data_flow.build_dataset()
+
+    # download data
+    if not options.only_build_dataset:
+        if not os.path.exists(options.raw_data_path):
+            cvat_data_flow.download_data()
+        else:
+            cvat_data_flow.logger.info("Data already downloaded")
+
+    # build dataset
+    # check if the dataset is already built
+    if not os.path.exists(f"{options.save_path}_{options.format}"):
+        cvat_data_flow.build_dataset(save_path=options.save_path)
+    else:
+        cvat_data_flow.logger.info("Dataset already built")
 
 if __name__ == '__main__':
     main()
