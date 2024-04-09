@@ -95,7 +95,7 @@ cvat_data_flow = CVATDataFlow(
 
 # download data
 if not options.only_build_dataset:
-    if not os.path.exists(options.raw_data_path):
+    if len(os.listdir(options.raw_data_path)) == 0:
         cvat_data_flow.download_data()
     else:
         cvat_data_flow.logger.info("Data already downloaded")
