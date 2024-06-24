@@ -101,7 +101,7 @@ class CVATUploader:
         if os.path.exists(archive_path):
             os.remove(archive_path)
 
-        self.logger.debug(f'downloading "{archive_path}" ...')
+        self.logger.debug(f'Downloading "{archive_path}" ...')
 
         try:
             if type == "task":
@@ -111,15 +111,15 @@ class CVATUploader:
 
             info.export_dataset('Datumaro 1.0', archive_path)
         except Exception as e:
-            self.logger.error(f'failed to download "{archive_path}": {e}')
+            self.logger.error(f'Failed to download "{archive_path}": {e}')
             return
 
-        self.logger.debug(f'successfully downloaded "{archive_path}"')
+        self.logger.debug(f'Successfully downloaded "{archive_path}"')
 
         target_directory = os.path.join(self.downloads_directory, str(id))
         os.makedirs(target_directory, exist_ok=True)
 
-        self.logger.debug(f'deflating "{archive_path}" to "{target_directory}" ...')
+        self.logger.debug(f'Deflating "{archive_path}" to "{target_directory}" ...')
 
         try:
             with open(archive_path, 'rb') as zip_input:
@@ -136,11 +136,11 @@ class CVATUploader:
             shutil.rmtree(source_images_directory)
 
         except Exception as e:
-            self.logger.error(f'failed to deflate "{archive_path}": {e}')
+            self.logger.error(f'Failed to deflate "{archive_path}": {e}')
             os.remove(archive_path)
             return
 
-        self.logger.debug(f'successfully deflated "{archive_path}"')
+        self.logger.debug(f'Successfully deflated "{archive_path}"')
         os.remove(archive_path)
 
     def _get_task_ids(self, project_id: int) -> list:
