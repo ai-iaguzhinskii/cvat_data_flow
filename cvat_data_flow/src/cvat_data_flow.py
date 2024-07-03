@@ -70,9 +70,7 @@ class CVATDataFlow:
         self.labels_id_mapping = labels_id_mapping
 
         self.setup_logging()
-        self.cvat_uploader = CVATUploader(
-            url=self.url, login=self.login, password=self.password, save_path=self.raw_data_path
-        )
+        self.cvat_uploader = None
 
     def setup_logging(self):
         """
@@ -87,6 +85,10 @@ class CVATDataFlow:
         """
         Download data from CVAT.
         """
+
+        self.cvat_uploader = CVATUploader(
+            url=self.url, login=self.login, password=self.password, save_path=self.raw_data_path
+        )
         if len(self.projects_ids) == 0:
             self.logger.info(f'Start downloading tasks {self.tasks_ids} ...')
             self.cvat_uploader.upload_tasks_from_cvat(task_ids=self.tasks_ids)
