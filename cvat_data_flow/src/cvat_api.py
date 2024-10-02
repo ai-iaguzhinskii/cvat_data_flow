@@ -87,22 +87,23 @@ class CVAT_API:
         with open(annotation_path, 'w') as f:
             json.dump(data, f, indent=4)
 
-    def _download_and_extract(self, cvat_object: Union[Task, Project]) -> None:
+    def _download_and_extract(self, cvat_object: Union[Task, Project], include_images: bool) -> None:
         """Download and extract dataset from CVAT."""
         archive_path = os.path.join(self.downloads_directory, f'{cvat_object.id}.zip')
 
         self.logger.debug(f'Downloading "{archive_path}" ...')
         try:
-            cvat_object.export_dataset('Datumaro 1.0', archive_path)
+            cvat_object.export_dataset('Datumaro 1.0', archive_path, include_images=include_images)
         except Exception as e:
             self.logger.error(f'Failed to download "{archive_path}": {e}')
             return
 
-        self._extract_dataset(archive_path)
+        self._extract_dataset(archive_path, include_images)
 
-    def _extract_dataset(self, archive_path: str) -> None:
+    def _extract_dataset(self, archive_path: str, include_images: bool) -> None:
         """Extract the downloaded dataset archive."""
-        target_directory = os.path.join(self.downloads_directory, os.path.splitext(os.path.basename(archive_path))[0])
+        dataset_name = os.path.splitext(os.path.basename(archive_path))[0]
+        target_directory = os.path.join(self.downloads_directory, dataset_name)
         os.makedirs(target_directory, exist_ok=True)
 
         self.logger.debug(f'Extracting "{archive_path}" to "{target_directory}" ...')
@@ -111,13 +112,9 @@ class CVAT_API:
             with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                 zip_ref.extractall(target_directory)
 
-            source_images_dir = os.path.join(target_directory, 'images', 'default')
-            target_images_dir = os.path.join(target_directory, 'images')
+            if include_images:
+                self._move_and_cleanup_images(target_directory)
 
-            for image in os.listdir(source_images_dir):
-                shutil.move(os.path.join(source_images_dir, image), target_images_dir)
-
-            shutil.rmtree(source_images_dir)
         except Exception as e:
             self.logger.error(f'Failed to extract "{archive_path}": {e}')
             os.remove(archive_path)
@@ -125,6 +122,20 @@ class CVAT_API:
 
         self.logger.debug(f'Successfully extracted "{archive_path}"')
         os.remove(archive_path)
+
+    def _move_and_cleanup_images(self, target_directory: str) -> None:
+        """Move images from the 'default' subfolder and clean up."""
+        source_images_dir = os.path.join(target_directory, 'images', 'default')
+        target_images_dir = os.path.join(target_directory, 'images')
+
+        if not os.path.exists(source_images_dir):
+            self.logger.warning(f'Source images directory "{source_images_dir}" does not exist.')
+            return
+
+        for image in os.listdir(source_images_dir):
+            shutil.move(os.path.join(source_images_dir, image), target_images_dir)
+
+        shutil.rmtree(source_images_dir)
 
     def _backup(self, cvat_object: Union[Task, Project]) -> None:
         """Backup project or task from CVAT."""
@@ -146,18 +157,18 @@ class CVAT_API:
         self.logger.info(f'Found {len(tasks)} tasks in project "{project_id}"')
         return tasks
 
-    def upload_tasks_from_cvat(self, tasks: List[Union[Task, int]]) -> None:
+    def upload_tasks_from_cvat(self, tasks: List[Union[Task, int]], include_images: bool) -> None:
         """Upload tasks from CVAT."""
         tasks = [self.client.tasks.retrieve(int(task)) if not isinstance(task, Task) else task for task in tasks]
 
         for task in tqdm(tasks):
-            self._download_and_extract(task)
+            self._download_and_extract(task, include_images)
 
-    def upload_projects_from_cvat(self, project_ids: List[int]) -> None:
+    def upload_projects_from_cvat(self, project_ids: List[int], include_images: bool) -> None:
         """Upload projects from CVAT."""
         for project_id in tqdm(project_ids):
             tasks = self._get_project_tasks(project_id)
-            self.upload_tasks_from_cvat(tasks)
+            self.upload_tasks_from_cvat(tasks=tasks, include_images=include_images)
 
         self.logger.info(f'Finished uploading projects {project_ids} from CVAT.')
 

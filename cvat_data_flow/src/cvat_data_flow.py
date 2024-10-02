@@ -87,7 +87,7 @@ class CVATDataFlow:
             url=self.url, login=self.login, password=self.password, save_path=self.raw_data_path
         )
 
-    def download_data(self) -> None:
+    def download_data(self, include_images: bool = False) -> None:
         """
         Download data from CVAT.
 
@@ -97,10 +97,10 @@ class CVATDataFlow:
 
         if not self.projects_ids:
             self.logger.info(f'Start downloading tasks {self.tasks_ids} ...')
-            self.cvat_uploader.upload_tasks_from_cvat(task_ids=self.tasks_ids)
+            self.cvat_uploader.upload_tasks_from_cvat(tasks=self.tasks_ids, include_images=include_images)
         else:
             self.logger.info(f'Start downloading projects {self.projects_ids} ...')
-            self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids)
+            self.cvat_uploader.upload_projects_from_cvat(project_ids=self.projects_ids, include_images=include_images)
 
     def build_dataset(self, save_path: str = None) -> str:
         """
