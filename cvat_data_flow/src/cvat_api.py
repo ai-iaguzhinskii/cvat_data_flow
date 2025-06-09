@@ -174,7 +174,12 @@ class CVAT_API:
 
     def backup_tasks_from_cvat(self, tasks: List[Union[Task, int]]) -> None:
         """Backup tasks from CVAT."""
-        tasks = [self.client.tasks.retrieve(task) if not isinstance(task, Task) else task for task in tasks]
+        tasks = [
+            self.client.tasks.retrieve(int(task))
+            if not isinstance(task, Task)
+            else task
+            for task in tasks
+        ]
 
         for task in tqdm(tasks):
             self._backup(task)
