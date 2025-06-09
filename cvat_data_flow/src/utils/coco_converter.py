@@ -225,7 +225,7 @@ class COCOConverter:
         sub_dataset_json_paths = [os.path.join(self.json_dir, json_file) for json_file in os.listdir(self.json_dir) if "instances_" in json_file and json_file.endswith('.json')]
         for json_file in sub_dataset_json_paths:
 
-            # Create a sub dataset directory to save the converted labels(ususally the same as the json file name: train, val, test)
+            # Create a sub dataset directory to save the converted labels(usually the same as the json file name: train, val, test)
             subset_name = os.path.basename(json_file).split('_')[-1].split('.')[0]
             sub_dataset_path = os.path.join(self.save_dir, subset_name)
             os.makedirs(sub_dataset_path, exist_ok=True)
