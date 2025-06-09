@@ -81,7 +81,9 @@ class CVAT_API:
             new_image_path = os.path.join(images_path, f'{self.img_num}.jpg')
             os.rename(old_image_path, new_image_path)
 
-            item['image']['path'] = item['id'] = item['media']['path'] = f'{self.img_num}.jpg'
+            item['image']['path'] = f'{self.img_num}.jpg'
+            item['media']['path'] = f'{self.img_num}.jpg'
+            item['id'] = self.img_num
             self.img_num += 1
 
         with open(annotation_path, 'w') as f:
