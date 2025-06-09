@@ -108,6 +108,14 @@ else:
     cvat_data_flow.logger.info("Dataset already built")
 ```
 
+## Running Tests
+
+Run the unit tests with:
+
+```bash
+pytest
+```
+
 ---
 
 ## License
